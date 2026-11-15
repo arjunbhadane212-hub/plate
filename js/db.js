@@ -67,11 +67,12 @@ const SKEY = 'plate.settings';
 export const DEFAULT_SETTINGS = {
   goals: { k: 2000, p: 150, c: 200, f: 65 },
   profile: { sex: 'male', age: 25, height: 175, weight: 75, activity: 1.55, goal: 'maintain', units: 'metric' },
+  ai: { geminiKey: '', usdaKey: '', model: '' },
 };
 export function getSettings() {
   try {
     const s = JSON.parse(localStorage.getItem(SKEY) || '{}');
-    return { ...DEFAULT_SETTINGS, ...s, goals: { ...DEFAULT_SETTINGS.goals, ...s.goals }, profile: { ...DEFAULT_SETTINGS.profile, ...s.profile } };
+    return { ...DEFAULT_SETTINGS, ...s, goals: { ...DEFAULT_SETTINGS.goals, ...s.goals }, profile: { ...DEFAULT_SETTINGS.profile, ...s.profile }, ai: { ...DEFAULT_SETTINGS.ai, ...s.ai } };
   } catch { return structuredClone(DEFAULT_SETTINGS); }
 }
 export function saveSettings(s) { localStorage.setItem(SKEY, JSON.stringify(s)); }

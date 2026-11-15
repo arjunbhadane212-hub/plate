@@ -1,7 +1,8 @@
 import { route } from '../app.js';
 import { getSettings, saveSettings, allMeals, putMany, clearMeals } from '../db.js';
-import { ai } from '../ai.js';
-import { toast, todayKey } from '../util.js';
+import { toast, todayKey, esc } from '../util.js';
+import { pickModel } from '../gemini.js';
+import { testUSDA } from '../usda.js';
 import { MACRO } from './components.js';
 
 const ACTIVITY = [[1.2, 'Mostly sitting'], [1.375, 'Light (1–3 workouts/wk)'], [1.55, 'Moderate (3–5/wk)'], [1.725, 'Very active (6–7/wk)'], [1.9, 'Athlete / physical job']];
@@ -15,6 +16,14 @@ export function calcGoals(pr) {
   const f = Math.round((k * 0.27) / 9);
   const c = Math.max(50, Math.round((k - p * 4 - f * 9) / 4));
   return { k, p, c, f };
+}
+
+function aiStatus(s, extra = {}) {
+  const dot = (ok) => `<span class="dot" style="background:${ok ? 'var(--good)' : 'var(--faint)'}"></span>`;
+  const g = extra.g ?? (s.ai.geminiKey && s.ai.model ? `Photo AI ready — ${esc(s.ai.model)}` : s.ai.geminiKey ? 'Gemini key saved, not tested' : 'Photo AI off — you describe meals in the chat');
+  const u = extra.u ?? (s.ai.usdaKey ? 'USDA food database connected' : 'USDA off — using the built-in food table');
+  return `<div class="status">${dot(extra.gOk ?? !!(s.ai.geminiKey && s.ai.model))}${g}</div>
+    <div class="status" style="margin-top:10px">${dot(extra.uOk ?? !!s.ai.usdaKey)}${u}</div>`;
 }
 
 export function renderSettings(view) {
@@ -50,12 +59,13 @@ export function renderSettings(view) {
     <p class="note">Uses the Mifflin-St Jeor equation. Protein ≈ ${pr.goal?.startsWith('lose') ? '2.0' : '1.8'} g per kg body weight, fat ≈ 27% of calories, carbs fill the rest.</p>
 
     <div class="h2">Photo AI</div>
-    <div class="card">
-      <div class="status"><span class="dot" style="background:${ai.connected ? 'var(--good)' : 'var(--faint)'}"></span>${ai.label}</div>
-      <p class="note" style="margin-top:8px">${ai.connected
-        ? 'Photos are analysed by AI, then calories are checked against the built-in food table.'
-        : 'No AI is connected yet. After taking a photo, tell the chat what\'s on the plate and it calculates calories from the built-in food table. Photo recognition gets plugged in next.'}</p>
+    <div class="card" style="padding:4px 18px">
+      <div class="field"><label>Gemini key<div class="sub">aistudio.google.com</div></label><input class="key" type="password" id="gkey" value="${esc(s.ai.geminiKey)}" placeholder="Paste key" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+      <div class="field"><label>USDA key<div class="sub">fdc.nal.usda.gov</div></label><input class="key" type="password" id="ukey" value="${esc(s.ai.usdaKey)}" placeholder="Paste key" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
     </div>
+    <div class="row-btns"><button class="btn black block" id="ai-save">Save &amp; test</button></div>
+    <div class="card" style="margin-top:12px" id="ai-status">${aiStatus(s)}</div>
+    <p class="note">Keys are saved only on this phone. Photos you scan are sent to Google Gemini to identify the food; food names are sent to USDA to look up calories.</p>
 
     <div class="h2">Your data</div>
     <div class="card">
@@ -94,6 +104,30 @@ export function renderSettings(view) {
     saveSettings(s);
     toast(`Daily goal set to ${s.goals.k.toLocaleString()} kcal`);
     route();
+  });
+
+  // AI keys
+  view.querySelector('#ai-save').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const box = view.querySelector('#ai-status');
+    s.ai.geminiKey = view.querySelector('#gkey').value.trim();
+    s.ai.usdaKey = view.querySelector('#ukey').value.trim();
+    s.ai.model = '';
+    saveSettings(s);
+    btn.disabled = true; btn.textContent = 'Testing…';
+    const st = {};
+    if (s.ai.geminiKey) {
+      try { s.ai.model = await pickModel(s.ai.geminiKey); st.g = `Photo AI ready — ${esc(s.ai.model)}`; st.gOk = true; }
+      catch (err) { st.g = `Gemini: ${esc(err.message)}`; st.gOk = false; }
+    }
+    if (s.ai.usdaKey) {
+      try { const ok = await testUSDA(s.ai.usdaKey); st.u = ok ? 'USDA food database connected' : 'USDA answered but found nothing'; st.uOk = ok; }
+      catch (err) { st.u = `USDA: ${esc(err.message)}`; st.uOk = false; }
+    }
+    saveSettings(s);
+    box.innerHTML = aiStatus(s, st);
+    btn.disabled = false; btn.textContent = 'Save & test';
+    toast(st.gOk === false || st.uOk === false ? 'Check the key that failed' : 'Saved');
   });
 
   // backup

@@ -76,7 +76,8 @@ export function applyMessage(mealIn, rawText) {
   const unknown = [];
   const t = strip(rawText);
   const low = t.toLowerCase();
-  const done = (reply) => ({ meal, reply, changed: changes.length > 0 });
+  const unknownParsed = [];
+  const done = (reply) => ({ meal, reply, changed: changes.length > 0, unknown: unknownParsed });
 
   if (!low) return done(help());
   if (/^(undo|revert|go back|undo that)$/.test(low)) return { meal: mealIn, reply: '', changed: false, undo: true };
@@ -207,7 +208,7 @@ export function applyMessage(mealIn, rawText) {
     .replace(/\s+(?:too|as\s+well|also|on\s+the\s+side)$/, '');
   for (const { seg, withCtx } of splitList(addText)) {
     const p = parsePhrase(seg, { withContext: withCtx });
-    if (p.unknown) { if (p.name) unknown.push(p.name); continue; }
+    if (p.unknown) { if (p.name) { unknown.push(p.name); unknownParsed.push(p); } continue; }
     const existing = p.food && meal.items.find((x) => x.foodId === p.food.id);
     if (existing && /\b(more|another|extra|additional)\b/.test(seg)) {
       const before = existing.grams;

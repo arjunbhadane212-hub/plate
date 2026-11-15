@@ -30,6 +30,13 @@ const INDEX = FOODS.flatMap((f) => [f.n, ...(f.a || [])].map((a) => ({ f, key: n
   .filter((e) => e.key)
   .sort((x, y) => y.key.length - x.key.length);
 
+/** Only an exact name/alias match (no fuzzy guessing). */
+export function findFoodExact(text) {
+  const t = ' ' + norm(text) + ' ';
+  for (const e of INDEX) if (t.includes(' ' + e.key + ' ')) return e.f;
+  return null;
+}
+
 /** Find the best database food mentioned in `text`. Returns food or null. */
 export function findFood(text) {
   const t = ' ' + norm(text) + ' ';
@@ -134,7 +141,10 @@ export function parsePhrase(raw, { withContext = false } = {}) {
   const rest = toks.join(' ').trim();
   const food = findFood(rest);
   const name = cleanName(rest);
-  if (!food && !kcalOverride) return { food: null, name, unknown: true };
+  if (!food && !kcalOverride) {
+    const massGrams = unit && MASS[unit] ? Math.round((qty ?? 1) * MASS[unit] * sizeMul) : null;
+    return { food: null, name, unknown: true, qty, grams: massGrams };
+  }
 
   // resolve grams
   let grams, unitLabel = null, explicitQty = qty != null || unit != null;
@@ -163,7 +173,7 @@ export function parsePhrase(raw, { withContext = false } = {}) {
   return { food, name, grams, kcalOverride, explicitQty, unitLabel, count: unitLabel ? q : null };
 }
 
-function cleanName(s) {
+export function cleanName(s) {
   const w = s.replace(/\b(of|the|some|my|a|an)\b/g, ' ').replace(/\s+/g, ' ').trim();
   return w ? w[0].toUpperCase() + w.slice(1) : '';
 }

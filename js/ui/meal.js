@@ -57,10 +57,10 @@ export async function renderMeal(view, id) {
     const s = meal.servings || 1;
     const items = meal.items.map((it) => {
       const k = itemTotals(it).k * s;
-      const tag = it.source === 'user' ? '<span class="tag">YOUR KCAL</span>' : it.source === 'ai' ? '<span class="tag">AI EST.</span>' : '';
+      const tag = it.source === 'user' ? '<span class="tag">YOUR KCAL</span>' : it.source === 'ai' ? '<span class="tag">AI EST.</span>' : it.source === 'usda' ? '<span class="tag">USDA</span>' : '';
       return `<div class="it ${openItems.has(it.id) ? 'open' : ''}" data-id="${it.id}">
         <div class="r" data-toggle>
-          <div><div class="n">${esc(it.name)}${tag}</div><div class="a">${amountLabel(it)}</div></div>
+          <div><div class="n">${esc(it.name)}${tag}</div><div class="a">${amountLabel(it)}</div>${it.match ? `<div class="m">${esc(it.match)}</div>` : ''}</div>
           <div class="k">${fmt(k)} kcal</div>
         </div>
         <div class="edit">
@@ -261,10 +261,11 @@ export async function renderMeal(view, id) {
 
   // ---------- first analysis for a new photo ----------
   if (meal.analyzing) {
-    let result = null;
+    let result = null, error = null;
     try {
       [result] = await Promise.all([ai.analyzePhoto(meal.photo), new Promise((r) => setTimeout(r, 700))]);
     } catch (err) {
+      error = err;
       console.warn(err);
     }
     if (state.draft !== meal) return; // navigated away
@@ -272,6 +273,12 @@ export async function renderMeal(view, id) {
     if (result?.items?.length) {
       meal.items = result.items;
       if (result.name && !meal.nameEdited) { meal.name = result.name; meal.nameEdited = true; }
+      const guessed = result.items.filter((i) => i.source === 'ai').length;
+      meal.chat.push({ role: 'bot', text: `I see: ${result.items.map((i) => i.name).join(', ')}.${guessed ? ` ${guessed} item${guessed > 1 ? 's are' : ' is'} my own estimate (marked AI EST.).` : ''} Anything I missed or got wrong? Tell me here.` });
+    } else if (error) {
+      meal.chat.push({ role: 'bot', text: `Photo analysis didn't work: ${error.message}. Describe the plate instead and I'll do the math.` });
+    } else if (result) {
+      meal.chat.push({ role: 'bot', text: `${result.note || "I couldn't find any food in that photo."} Tell me what you ate instead.` });
     }
     paint();
     if (!result?.items?.length) openChat();
