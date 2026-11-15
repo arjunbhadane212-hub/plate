@@ -1,5 +1,5 @@
 // Offline support: cache the app shell, serve it when offline, refresh in background.
-const VERSION = 'plate-v2';
+const VERSION = 'plate-v3';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/db.js', 'js/foods.js', 'js/nutrition.js', 'js/chat.js', 'js/ai.js', 'js/util.js', 'js/usda.js', 'js/gemini.js',

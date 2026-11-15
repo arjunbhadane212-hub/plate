@@ -37,11 +37,19 @@ function toResult(food) {
 }
 
 async function search(query, key, dataType) {
-  const res = await fetch(`${API}?api_key=${encodeURIComponent(key)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, pageSize: 5, dataType }),
-  });
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 4000); // never hold up the result screen for long
+  let res;
+  try {
+    res = await fetch(`${API}?api_key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, pageSize: 5, dataType }),
+      signal: ctl.signal,
+    });
+  } catch (e) {
+    throw new Error(e.name === 'AbortError' ? 'USDA took too long' : 'USDA unreachable');
+  } finally { clearTimeout(timer); }
   if (res.status === 403) throw new Error('USDA key was rejected');
   if (res.status === 429) throw new Error('USDA rate limit reached, try again in an hour');
   if (!res.ok) throw new Error(`USDA error ${res.status}`);

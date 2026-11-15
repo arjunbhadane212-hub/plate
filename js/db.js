@@ -67,7 +67,7 @@ const SKEY = 'plate.settings';
 export const DEFAULT_SETTINGS = {
   goals: { k: 2000, p: 150, c: 200, f: 65 },
   profile: { sex: 'male', age: 25, height: 175, weight: 75, activity: 1.55, goal: 'maintain', units: 'metric' },
-  ai: { geminiKey: '', usdaKey: '', model: '' },
+  ai: { geminiKey: '', usdaKey: '', model: '', context: '' },
 };
 export function getSettings() {
   try {

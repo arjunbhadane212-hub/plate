@@ -208,6 +208,27 @@ function pickUnit(food) {
   return null;
 }
 
+/** A dish made of ingredients: nutrition = sum of the parts. */
+export function itemFromParts(name, parts, extra = {}) {
+  const grams = parts.reduce((s, p) => s + p.grams, 0) || 1;
+  const t = parts.reduce((a, p) => {
+    const m = p.grams / 100;
+    return { k: a.k + p.per100.k * m, p: a.p + p.per100.p * m, c: a.c + p.per100.c * m, f: a.f + p.per100.f * m };
+  }, { k: 0, p: 0, c: 0, f: 0 });
+  return {
+    id: extra.id || uid(), foodId: null, name, grams: Math.round(grams),
+    per100: { k: (t.k / grams) * 100, p: (t.p / grams) * 100, c: (t.c / grams) * 100, f: (t.f / grams) * 100 },
+    unit: null, source: 'recipe', parts,
+  };
+}
+/** Ingredients scaled to the dish's current weight (after +/- adjustments). */
+export function scaledParts(it) {
+  if (!it.parts?.length) return [];
+  const sum = it.parts.reduce((s, p) => s + p.grams, 0) || 1;
+  const f = it.grams / sum;
+  return it.parts.map((p) => ({ ...p, grams: p.grams * f }));
+}
+
 /** Build an item from a parsed phrase. */
 /** Use the user's own wording ("grilled chicken breast") when it's short and clean. */
 export function niceName(p) {

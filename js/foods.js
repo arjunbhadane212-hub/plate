@@ -47,7 +47,7 @@ export const FOODS = [
   F('chana-masala', 'Chana masala', ['chana masala', 'chole', 'chickpea curry'], 150, 6, 18, 6, 200, '1 bowl', { cup: 200, bowl: 200 }),
   F('rajma', 'Rajma', ['rajma', 'kidney bean curry', 'kidney bean', 'chili con carne', 'chili'], 140, 7, 17, 5, 200, '1 bowl', { cup: 200, bowl: 200 }),
   F('black-beans', 'Black beans', ['black bean', 'bean', 'refried bean', 'pinto bean', 'baked bean'], 132, 8.9, 23.7, 0.5, 172, '1 cup', { cup: 172 }),
-  F('chicken-curry', 'Chicken curry', ['chicken curry', 'curry', 'chicken masala', 'kadai chicken', 'chicken korma'], 150, 13, 5, 9, 250, '1 bowl', { cup: 240, bowl: 250 }),
+  F('chicken-curry', 'Chicken curry', ['chicken curry', 'curry', 'chicken masala', 'kadai chicken', 'chicken korma', 'chicken sabzi', 'chicken sabji', 'chicken bhuna', 'chicken handi', 'chicken gravy'], 150, 13, 5, 9, 250, '1 bowl', { cup: 240, bowl: 250 }),
   F('butter-chicken', 'Butter chicken', ['butter chicken', 'chicken tikka masala', 'tikka masala', 'murgh makhani'], 185, 13, 6, 12, 250, '1 bowl', { cup: 240, bowl: 250 }),
   F('paneer-curry', 'Paneer curry', ['paneer butter masala', 'palak paneer', 'shahi paneer', 'kadai paneer', 'paneer curry', 'matar paneer'], 200, 9, 7, 15, 200, '1 bowl', { cup: 220, bowl: 200 }),
   F('veg-curry', 'Vegetable curry', ['vegetable curry', 'veg curry', 'sabzi', 'sabji', 'aloo gobi', 'mixed veg curry', 'bhindi'], 110, 3, 11, 6, 200, '1 bowl', { cup: 200, bowl: 200 }),

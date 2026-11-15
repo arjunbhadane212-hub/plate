@@ -22,6 +22,7 @@ export async function renderHome(view) {
   const start = addDays(end, -6);
 
   const [meals, days] = await Promise.all([mealsInRange(dayKey(start), dayKey(end)), loggedDays()]);
+  if (!/^#?\/?$/.test(location.hash)) return; // user navigated away while loading
   const byDay = {};
   for (const m of meals) (byDay[m.day] ||= []).push(m);
   const dayMeals = (byDay[state.day] || []).sort((a, b) => a.ts - b.ts);

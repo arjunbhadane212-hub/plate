@@ -63,6 +63,11 @@ export function renderSettings(view) {
       <div class="field"><label>Gemini key<div class="sub">aistudio.google.com</div></label><input class="key" type="password" id="gkey" value="${esc(s.ai.geminiKey)}" placeholder="Paste key" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
       <div class="field"><label>USDA key<div class="sub">fdc.nal.usda.gov</div></label><input class="key" type="password" id="ukey" value="${esc(s.ai.usdaKey)}" placeholder="Paste key" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
     </div>
+    <div class="card" style="margin-top:12px">
+      <label style="font-weight:650">What do you usually eat? <span class="muted">(optional)</span></label>
+      <textarea id="food-ctx" rows="3" placeholder="e.g. Mostly Indian home cooking — roti, sabzi, dal, rice. We cook with ghee and mustard oil." style="width:100%;margin-top:8px;border:0;background:var(--chip);border-radius:12px;padding:10px 12px;resize:vertical;outline:none">${esc(s.ai.context || '')}</textarea>
+      <p class="note" style="margin-top:6px">Helps the AI recognise your usual dishes and how they're cooked.</p>
+    </div>
     <div class="row-btns"><button class="btn black block" id="ai-save">Save &amp; test</button></div>
     <div class="card" style="margin-top:12px" id="ai-status">${aiStatus(s)}</div>
     <p class="note">Keys are saved only on this phone. Photos you scan are sent to Google Gemini to identify the food; food names are sent to USDA to look up calories.</p>
@@ -106,12 +111,15 @@ export function renderSettings(view) {
     route();
   });
 
+  view.querySelector('#food-ctx').addEventListener('change', (e) => { s.ai.context = e.target.value.trim().slice(0, 500); saveSettings(s); toast('Saved'); });
+
   // AI keys
   view.querySelector('#ai-save').addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const box = view.querySelector('#ai-status');
     s.ai.geminiKey = view.querySelector('#gkey').value.trim();
     s.ai.usdaKey = view.querySelector('#ukey').value.trim();
+    s.ai.context = view.querySelector('#food-ctx').value.trim().slice(0, 500);
     s.ai.model = '';
     saveSettings(s);
     btn.disabled = true; btn.textContent = 'Testing…';

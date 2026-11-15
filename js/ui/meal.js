@@ -1,6 +1,6 @@
 import { state } from '../app.js';
 import { getMeal, saveMeal, deleteMeal, savePhoto, getPhoto } from '../db.js';
-import { mealTotals, itemTotals, amountLabel, itemStep } from '../nutrition.js';
+import { mealTotals, itemTotals, amountLabel, itemStep, scaledParts } from '../nutrition.js';
 import { summary, help } from '../chat.js';
 import { ai } from '../ai.js';
 import { fmt, fmtTime, prettyDay, esc, toast, shrinkDataUrl } from '../util.js';
@@ -17,6 +17,7 @@ export async function renderMeal(view, id) {
     meal = state.draft;
   } else {
     const saved = await getMeal(id);
+    if (location.hash !== '#/meal/' + id) return; // user navigated away while loading
     if (!saved) { toast('Meal not found'); location.hash = '#/'; return; }
     meal = structuredClone(saved);
     meal.chat ||= [];
@@ -57,12 +58,17 @@ export async function renderMeal(view, id) {
     const s = meal.servings || 1;
     const items = meal.items.map((it) => {
       const k = itemTotals(it).k * s;
-      const tag = it.source === 'user' ? '<span class="tag">YOUR KCAL</span>' : it.source === 'ai' ? '<span class="tag">AI EST.</span>' : it.source === 'usda' ? '<span class="tag">USDA</span>' : '';
+      const tagFor = (src) => src === 'user' ? '<span class="tag">YOUR KCAL</span>' : src === 'ai' ? '<span class="tag">AI EST.</span>' : src === 'usda' ? '<span class="tag">USDA</span>' : '';
+      const tag = tagFor(it.source);
+      const parts = scaledParts(it);
+      const partsLine = parts.length ? `<div class="m">${esc(parts.map((p) => p.name.split(',')[0].toLowerCase()).join(', '))}</div>` : '';
+      const partsList = parts.length ? `<div class="parts">${parts.map((p) => `<div class="pr"><span>${esc(p.name)}${tagFor(p.source)}</span><span>${Math.round(p.grams)} g · ${fmt((p.per100.k * p.grams / 100) * s)} kcal</span></div>`).join('')}</div>` : '';
       return `<div class="it ${openItems.has(it.id) ? 'open' : ''}" data-id="${it.id}">
         <div class="r" data-toggle>
-          <div><div class="n">${esc(it.name)}${tag}</div><div class="a">${amountLabel(it)}</div>${it.match ? `<div class="m">${esc(it.match)}</div>` : ''}</div>
+          <div><div class="n">${esc(it.name)}${tag}</div><div class="a">${amountLabel(it)}</div>${partsLine}${it.match ? `<div class="m">${esc(it.match)}</div>` : ''}</div>
           <div class="k">${fmt(k)} kcal</div>
         </div>
+        ${partsList}
         <div class="edit">
           <div class="grams">
             <div class="stepper"><button data-step="-1">−</button></div>
@@ -84,9 +90,9 @@ export async function renderMeal(view, id) {
       ${meal.analyzing ? `<div class="card scan"><b>Analyzing your plate…</b><div class="shimmer" style="width:80%"></div><div class="shimmer" style="width:55%"></div><div class="shimmer" style="width:68%"></div></div>` : `
       <div class="card kcal-card"><div class="ico">${ICON.flame}</div><div><div class="lbl">Calories</div><div class="num">${fmt(t.k)}</div></div></div>
       <div class="mini3">${MACRO.map((m) => `<div class="mini"><div class="lbl"><span style="color:${m.color};width:14px;display:inline-block">${m.icon}</span>${m.label}</div><div class="num">${fmt(t[m.key])}g</div></div>`).join('')}</div>
-      <div class="h2">Ingredients <button class="link" id="add-item">+ Add</button></div>
+      <div class="h2">On your plate <button class="link" id="add-item">+ Add</button></div>
       <div class="items">${items || `<div class="card empty" style="padding:22px"><b>No items yet</b>Tap <b style="display:inline">Fix results</b> and tell me what's on the plate.</div>`}</div>
-      <p class="note">Calories come from a built-in USDA-based food table. Tap any item to fine-tune its portion; use Fix results for anything else.</p>`}
+      <p class="note">Calories come from the USDA database and a built-in food table. Tap an item to see what's in it or adjust the portion; tell Fix results anything else.</p>`}
     `;
     if (chatEl) chatEl.querySelector('.live').textContent = summary(meal);
   }
@@ -143,7 +149,9 @@ export async function renderMeal(view, id) {
   }
   function renderMsgs() {
     const box = chatEl.querySelector('.msgs');
-    box.innerHTML = meal.chat.map((m) => `<div class="bubble ${m.role}">${esc(m.text)}</div>`).join('');
+    box.innerHTML = meal.chat.map((m) => `<div class="bubble ${m.role}">${esc(m.text)}</div>`).join('')
+      + (busy ? '<div class="bubble bot typing"><i></i><i></i><i></i></div>' : '');
+    chatEl.querySelector('.send').disabled = busy;
     box.scrollTop = box.scrollHeight;
     chatEl.querySelector('.chips').innerHTML = suggestions().map((s) => `<button class="chip">${esc(s)}</button>`).join('');
   }
@@ -157,7 +165,7 @@ export async function renderMeal(view, id) {
         <div class="live"></div></div>
       <div class="msgs"></div>
       <div class="chips"></div>
-      <form class="composer"><input placeholder="e.g. you missed the rice" autocomplete="off" enterkeyhint="send"><button class="send" aria-label="Send">${ICON.send}</button></form>`;
+      <form class="composer"><input placeholder="${ai.connected ? 'Talk to me, e.g. the sabzi has potato and peas' : 'e.g. you missed the rice'}" autocomplete="off" enterkeyhint="send"><button class="send" aria-label="Send">${ICON.send}</button></form>`;
     document.getElementById('sheet-root').append(scrimEl, chatEl);
     if (!meal.chat.length) {
       meal.chat.push({ role: 'bot', text: ai.connected
@@ -174,7 +182,7 @@ export async function renderMeal(view, id) {
       e.preventDefault();
       const inp = chatEl.querySelector('input');
       const v = inp.value.trim();
-      if (v) { inp.value = ''; send(v); }
+      if (v && !busy) { inp.value = ''; send(v); }
     });
     fitKeyboard();
     if (focus) setTimeout(() => chatEl?.querySelector('input').focus(), 320);
@@ -187,7 +195,10 @@ export async function renderMeal(view, id) {
     c.querySelector('input').blur();
     setTimeout(() => { c.remove(); s.remove(); }, 300);
   }
+  let busy = false;
   async function send(text) {
+    if (busy) return;
+    busy = true;
     meal.chat.push({ role: 'me', text });
     renderMsgs();
     let reply;
@@ -206,6 +217,7 @@ export async function renderMeal(view, id) {
     } catch (err) {
       reply = `Something went wrong: ${err.message}`;
     }
+    busy = false;
     meal.chat.push({ role: 'bot', text: reply });
     paint();
     if (chatEl) renderMsgs();
@@ -263,7 +275,7 @@ export async function renderMeal(view, id) {
   if (meal.analyzing) {
     let result = null, error = null;
     try {
-      [result] = await Promise.all([ai.analyzePhoto(meal.photo), new Promise((r) => setTimeout(r, 700))]);
+      [result] = await Promise.all([ai.analyzePhoto(meal.photo, (stage) => { const b = panel.querySelector('.scan b'); if (b) b.textContent = stage; }), new Promise((r) => setTimeout(r, 700))]);
     } catch (err) {
       error = err;
       console.warn(err);

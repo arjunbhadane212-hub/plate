@@ -80,6 +80,7 @@ export async function renderProgress(view) {
   const P = period(mode, anchor);
   const today = todayKey();
   const [meals, days] = await Promise.all([mealsInRange(dayKey(P.start), dayKey(P.end)), loggedDays()]);
+  if (location.hash !== '#/progress') return; // user navigated away while loading
 
   const byDay = {};
   for (const m of meals) (byDay[m.day] ||= []).push(m);
